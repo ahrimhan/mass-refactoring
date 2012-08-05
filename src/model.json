@@ -1,0 +1,7 @@
+[
+	{
+		"name" : "kr.ac.kaist.se.classA",
+		"fields" : [ { "name": "FieldA","incomingDeps" : ["MethodA"] }, {"name":"FieldB", "incomingDeps" : ["MethodB"]} ],
+		"methods" : [ { "name": "MethodA", "outgoingDeps" : ["MethodB", "FieldA"] }, {"name":"MethodB", "incomingDeps" : ["MethodA"], "outgoingDeps" : ["FieldB"]}]
+	}
+]

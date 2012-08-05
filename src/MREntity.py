@@ -1,0 +1,53 @@
+
+def if_else(condition, a, b) :
+    if condition : return a
+    else         : return b
+
+class MREntity:
+    name = None
+    incomingDeps = []
+    outgoingDeps = []
+
+    def setName(self, name):
+        self.name = name
+
+    def getName(self):
+        return self.name
+
+    def isMovable(self):
+        return False
+
+    def addIncomingDep(self, dep):
+        self.incomingDeps.append(dep)
+
+    def removeIncomingDep(self, dep):
+        self.incomingDeps.remove(dep)
+
+    def addOutgoingDep(self, dep):
+        self.outgoingDeps.append(dep)
+
+    def removeOutgoingDep(self, dep):
+        self.outgoingDeps.remove(dep)
+
+    def getIncomingDeps(self):
+        return self.incomingDeps[:]
+
+    def getOutgoingDeps(self):
+        return self.outgoingDeps[:]
+
+    def resolve(self, entity_dict):
+        self.incomingDeps= map(lambda x: entity_dict[x], self.incomingDeps)
+        self.outgoingDeps= map(lambda x: entity_dict[x], self.outgoingDeps)
+
+    def loadData(self, entity_data, entity_dict):
+        self.setName(entity_data["name"])
+        entity_dict[self.name] = self
+        self.incomingDeps = []
+        self.outgoingDeps = []
+        if "incomingDeps" in entity_data:
+            for incoming_entity in entity_data["incomingDeps"]:
+                self.addIncomingDep(incoming_entity)
+        if "outgoingDeps" in entity_data:
+            for outgoing_entity in entity_data["outgoingDeps"]:
+                self.addOutgoingDep(outgoing_entity)
+
