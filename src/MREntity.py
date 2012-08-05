@@ -8,6 +8,10 @@ class MREntity:
     incomingDeps = []
     outgoingDeps = []
 
+    def __init__(self):
+        self.incomingDeps = []
+        self.outgoingDeps = []
+
     def setName(self, name):
         self.name = name
 
@@ -30,10 +34,10 @@ class MREntity:
         self.outgoingDeps.remove(dep)
 
     def getIncomingDeps(self):
-        return self.incomingDeps[:]
+        return self.incomingDeps
 
     def getOutgoingDeps(self):
-        return self.outgoingDeps[:]
+        return self.outgoingDeps
 
     def resolve(self, entity_dict):
         self.incomingDeps= map(lambda x: entity_dict[x], self.incomingDeps)
@@ -51,3 +55,12 @@ class MREntity:
             for outgoing_entity in entity_data["outgoingDeps"]:
                 self.addOutgoingDep(outgoing_entity)
 
+    def saveData(self):
+        incoming_data = []
+        outgoing_data = []
+        for incomingDep in self.incomingDeps:
+            incoming_data.append(incomingDep.getName())
+        for outgoingDep in self.outgoingDeps:
+            outgoing_data.append(outgoingDep.getName())
+        entity_data = {"name" : self.getName(), "incomingDeps":incoming_data, "outgoingDeps":outgoing_data}
+        return entity_data
