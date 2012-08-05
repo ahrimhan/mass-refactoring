@@ -40,8 +40,15 @@ class MREntity:
         return self.outgoingDeps
 
     def resolve(self, entity_dict):
-        self.incomingDeps= map(lambda x: entity_dict[x], self.incomingDeps)
-        self.outgoingDeps= map(lambda x: entity_dict[x], self.outgoingDeps)
+        self.incomingDeps= self.resolve_entity(self.incomingDeps, entity_dict)
+        self.outgoingDeps= self.resolve_entity(self.outgoingDeps, entity_dict)
+
+    def resolve_entity(self, depList, entity_dict):
+        retDepList = []
+        for dep in depList:
+            if dep in entity_dict:
+                retDepList.append(entity_dict[dep])
+        return retDepList
 
     def loadData(self, entity_data, entity_dict):
         self.setName(entity_data["name"])

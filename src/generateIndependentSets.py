@@ -10,27 +10,37 @@ def generateIndependentSets(model):
     entities = []
     entitiesIdxMap = {}
 
+    numClass = 0
+    numMethod = 0
+    numField = 0
+    numDep = 0
+    for mrClass in model.getClasses():
+        numClass = numClass + 1
+        numMethod = numMethod + len(mrClass.getMethods())
+        numField = numField + len(mrClass.getFields())
+
+
     i = 0;
     for mrClass in model.getClasses():
         for mrMethod in mrClass.getMethods():
             entities.append(mrMethod)
             entitiesIdxMap[mrMethod] = i
-        for mrField in mrClass.getFields():
-            entities.append(mrField)
-            entitiesIdxMap[mrField] = i
-        i = i + 1
+            i = i + 1
 
-    g = Graph(len(entities))
+    g = Graph(n=len(entities), directed=False)
     for i in range(len(entities)):
         g.vs[i]["MREntity"] = entities[i]
-        for outgoingDep in entities[i].getOutgoingDeps():
-            g.add_edges([(i, entitiesIdxMap[outgoingDep])])
+        for incomingDep in entities[i].getIncomingDeps():
+            g.add_edges([(entitiesIdxMap[incomingDep], i)])
+            numDep = numDep + 1
 
+    print >> sys.stderr, "Class: %d, Method: %d, Field: %d dep:%d" % (numClass, numMethod, numField, numDep)
 #   reset idx map
-    entitiesIdxMap = {}
 
     print >> sys.stderr, "Finding independent vertex sets...",
+#    independent_vertex_set = g.independent_vertex_sets(1, 5)
     independent_vertex_set = g.maximal_independent_vertex_sets()
+    independent_vertex_set = map(lambda x: map(lambda y: entities[y].getName(), x), independent_vertex_set)
     print >> sys.stderr, "done"
 
     return independent_vertex_set

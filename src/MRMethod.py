@@ -12,3 +12,5 @@ class MRMethod(MREntity):
             ret = ret + "\t\t-> " + dep.getName() + "\n"
         ret = ret + "\t}\n"
         return ret
+    def __repr__(self):
+        return self.getName()

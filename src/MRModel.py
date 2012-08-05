@@ -69,10 +69,10 @@ def main():
     if sys.argv[1] == "load":
         model = MRModel()
         model.load(modelfile)
-        pprint(generateIndependentSets(model))
+        graph = generateIndependentSets(model)
 
     if sys.argv[1] == "generate":
-        model = generateRandomModel(300, 1000, 1000, 5000)
+        model = generateRandomModel(100, 300, 300, 10000)
         model.save(modelfile)
 
 

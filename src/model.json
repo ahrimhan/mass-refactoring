@@ -1,7 +1,25 @@
 [
 	{
-		"name" : "kr.ac.kaist.se.classA",
-		"fields" : [ { "name": "FieldA","incomingDeps" : ["MethodA"] }, {"name":"FieldB", "incomingDeps" : ["MethodB"]} ],
-		"methods" : [ { "name": "MethodA", "outgoingDeps" : ["MethodB", "FieldA"] }, {"name":"MethodB", "incomingDeps" : ["MethodA"], "outgoingDeps" : ["FieldB"]}]
+		"name" : "A",
+		"fields" : [],
+		"methods" : [ { "name": "m7", "outgoingDeps" : ["m3"] }, {"name":"m6", "outgoingDeps" : ["m3"]}, {"name":"m2", "outgoingDeps":["m3"], "incomingDeps":["m5"]} ]
+	},
+
+	{
+		"name" : "B",
+		"fields" : [],
+		"methods" : [ { "name":"m3", "outgoingDeps" : ["m4", "m1"], "incomingDeps":["m2", "m6", "m7"] }, {"name":"m1", "incomingDeps":["m3"]} ]
+	},
+
+	{
+		"name" : "C",
+		"fields" : [],
+		"methods" : [ { "name":"m4", "incomingDeps" : ["m3"] } ]
+	},
+
+	{
+		"name" : "D",
+		"fields" : [],
+		"methods" : [ { "name":"m5", "outgoingDeps" : ["m2"] } ]
 	}
 ]
