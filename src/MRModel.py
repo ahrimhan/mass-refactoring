@@ -5,7 +5,7 @@ from pprint import pprint
 
 from MRClass import *
 from generateRandomModel import *
-from generateIndependentSets import *
+from MREngine import *
 
 CURDIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -69,7 +69,10 @@ def main():
     if sys.argv[1] == "load":
         model = MRModel()
         model.load(modelfile)
-        graph = generateIndependentSets(model)
+        engine = MREngine()
+        engine.initialize(model)
+        D = engine.getEvalMatrix()
+        print D
 
     if sys.argv[1] == "generate":
         model = generateRandomModel(100, 300, 300, 10000)

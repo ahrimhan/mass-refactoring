@@ -74,3 +74,6 @@ class MRClass:
             ret = ret + str(mrMethod) + "\n"
         ret = ret + "}\n"
         return ret
+
+    def __repr__(self):
+        return self.getName()
