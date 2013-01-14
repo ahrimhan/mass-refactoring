@@ -117,23 +117,12 @@ class MREngine:
         return sp.coo_matrix(new_matrix)
 
     def getEvalMatrix(self):
-        print >> sys.stderr, "getInternalExternalLinkMatrix"
+
         (internal_matrix, external_matrix) = self.getInternalExternalLinkMatrix()
-        print >> sys.stderr, "internal_link_matrix"
-        print >> sys.stderr, internal_matrix
-        print >> sys.stderr, "external_link_matrix"
-        print >> sys.stderr, external_matrix
-        print >> sys.stderr, "dot IP"
         IP = internal_matrix * self.membershipMatrix
-        print IP.todense()
-        print >> sys.stderr, "dot EP"
         EP = external_matrix * self.membershipMatrix
-        print >> sys.stderr, "inv IIP"
         IIP = self.invertedMembershipMatrix(IP)
-        print IIP.todense()
-        print >> sys.stderr, "IIP-EP"
         D = IIP - EP
-        print >> sys.stderr, "done"
         return D.todense()
     def __repr__(self):
         return self.getName()
