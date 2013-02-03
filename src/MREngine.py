@@ -18,6 +18,7 @@ class MREngine:
     entityIdxMap = None
     numMethod = 0
     numField = 0
+    independent_set = None
     
     def initialize(self, model):
         classes = []
@@ -117,27 +118,38 @@ class MREngine:
 
         return sp.coo_matrix(new_matrix)
 
+    def getIndependentSet(self):
+        if self.independent_set == None:
+            self.independent_set = generateIndependentSets(sp.coo_matrix(methodMatrix), self.numMethod)
+        return self.independent_set
+
+    def getIndexOfPostiveMoveMethodCandidates(self, D):
+        PD = D[0:self.numMethod, :]
+        PD = PD - absolute(PD)
+        PD = PD / 2
+        PD = PD.astype('int32')
+        candidateList = []
+        rows_unique = []
+        cols_unique = []
+
+        (rows, cols) = PD.nonzero()
+
+        for i in range(len(rows)):
+            candidateList.append((rows[i], cols[i], D[rows[i], cols[i]]))
+
+
+        return candidateList
+
     def getEvalMatrix(self):
         methodMatrix = self.linkMatrix.todense()[0:self.numMethod, 0:self.numMethod]
-        independent_set = generateIndependentSets(sp.coo_matrix(methodMatrix), self.numMethod)
-        print "Idependent set:" + str(independent_set)
+        #print "Idependent set:" + str(independent_set)
 
         (internal_matrix, external_matrix) = self.getInternalExternalLinkMatrix()
         IP = internal_matrix * self.membershipMatrix
         EP = external_matrix * self.membershipMatrix
         IIP = self.invertedMembershipMatrix(IP)
         D = IIP - EP
-#        PD = D[0:self.numMethod, :]
-#        PD = PD - absolute(PD)
-#        PD = PD / 2
-#        PD = PD.astype('int32')
-
-#        (rows, cols) = PD.nonzero()
-#        print PD.nonzero()
-#        unique_rows = unique(rows)
-#        print "Positive refactoring:" + str(len(unique_rows))
-#        PDP = take(take(self.linkMatrix.todense(), unique_rows, axis=0), unique_rows, axis=1)
-
         return D
+
     def __repr__(self):
         return self.getName()
