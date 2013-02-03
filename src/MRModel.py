@@ -71,11 +71,12 @@ def main():
         model.load(modelfile)
         engine = MREngine()
         engine.initialize(model)
-        D = engine.getEvalMatrix()
-        print D
+        engine.getCohesion()
+#        D = engine.getEvalMatrix()
+#        print D
 
     if sys.argv[1] == "generate":
-        model = generateRandomModel(100, 300, 300, 10000)
+        model = generateRandomModel(3, 6, 6, 18)
         model.save(modelfile)
 
 

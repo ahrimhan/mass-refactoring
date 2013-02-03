@@ -137,8 +137,39 @@ class MREngine:
         for i in range(len(rows)):
             candidateList.append((rows[i], cols[i], D[rows[i], cols[i]]))
 
-
         return candidateList
+
+    def getReferencedAttributesCount(self, methodId1, methodId2, classId):
+        linkMatrix = self.linkMatrix.tocsr()
+        methodMatrix1 = linkMatrix[methodId1, :]
+        methodMatrix2 = linkMatrix[methodId2, :]
+        print "methodMatrix1:%d" % methodId1
+        print methodMatrix1
+        print "methodMatrix2:%d" % methodId2
+        print methodMatrix2
+
+
+    def getCohesion(self):
+        linkMatrix = self.linkMatrix.todense()
+        print "linkMatrix"
+        print linkMatrix
+        print "membershipMatrix[method:%d, field:%d]" % (self.numMethod, self.numField)
+        print self.membershipMatrix.todense()
+        tdmMatrix = self.membershipMatrix.tocsc()[0:self.numMethod, :]
+        (numFunc, numClass) =  tdmMatrix.shape
+        print tdmMatrix.shape
+        for classId in range(numClass):
+            (funcIdMatrix, _) = tdmMatrix.getcol(classId).nonzero()
+            print funcIdMatrix
+            for funcIdId1 in range(len(funcIdMatrix)):
+                for funcIdId2 in range(len(funcIdMatrix)):
+                    if funcIdId1 < funcIdId2:
+                        self.getReferencedAttributesCount(funcIdMatrix[funcIdId1], funcIdMatrix[funcIdId2], classId)
+
+        #classNum = tdmMatrix.row
+        #for rowId in range(classNum):
+        #    print tdmMatrix[rowId, :]
+
 
     def getEvalMatrix(self):
         methodMatrix = self.linkMatrix.todense()[0:self.numMethod, 0:self.numMethod]
