@@ -7,6 +7,7 @@ class MREntity:
     name = None
     incomingDeps = []
     outgoingDeps = []
+    index = 0
 
     def __init__(self):
         self.incomingDeps = []
@@ -18,8 +19,17 @@ class MREntity:
     def getName(self):
         return self.name
 
+    def isMethod(self):
+        return False
+
     def isMovable(self):
         return False
+
+    def setIndex(self, index):
+        self.index = index
+
+    def getIndex(self):
+        return self.index
 
     def addIncomingDep(self, dep):
         self.incomingDeps.append(dep)

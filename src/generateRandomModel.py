@@ -39,6 +39,11 @@ def generateRandomModel(classNum, methodNum, fieldNum, depNum):
 
     print "dependencies are created...",
 
+    for method in newMethodList:
+        fieldIdx = random.randint(0, len(newFieldList) - 1)
+        method.addOutgoingDep(newFieldList[fieldIdx])
+        newFieldList[fieldIdx].addIncomingDep(method)
+
     for d in range(depNum):
         while True:
             methodIdx1 = random.randint(0, len(newMethodList) - 1)

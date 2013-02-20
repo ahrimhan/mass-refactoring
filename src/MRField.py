@@ -19,3 +19,7 @@ class MRField(MREntity):
         return ret
     def __repr__(self):
         return self.getName()
+    def __hash__(self):
+        return hash(self.name)
+    def __eq__(self, other):
+        return self.name == other.name

@@ -51,33 +51,81 @@ class MRModel:
 
 def main():
     if len(sys.argv) != 3:
-        print "Usage: %s [load|generate] [modelfile]" % sys.argv[0]
+        print "Usage: %s [mass|step|generate] [modelfile]" % sys.argv[0]
         sys.exit(1)
 
-    if sys.argv[1] != "load" and sys.argv[1] != "generate":
-        print "Usage: %s [load|generate] [modelfile]" % sys.argv[0]
+    if sys.argv[1] != "mass" and sys.argv[1] != "generate" and sys.argv[1] != "step":
+        print "Usage: %s [mass|step|generate] [modelfile]" % sys.argv[0]
         sys.exit(1)
 
     try:
         modelfile = sys.argv[2]
     except Exception:
-        print "Usage: %s [load|generate] [modelfile]" % sys.argv[0]
+        print "Usage: %s [mass|step|generate] [modelfile]" % sys.argv[0]
         sys.exit(1)
 
     modelfile = os.path.join(CURDIR, modelfile)
 
-    if sys.argv[1] == "load":
+    if sys.argv[1] == "mass":
         model = MRModel()
         model.load(modelfile)
         engine = MREngine()
         engine.initialize(model)
-        engine.getCohesion()
-#        D = engine.getEvalMatrix()
-#        print D
+
+        before_eps = engine.getEntityPlacement();
+        before_cohesion = engine.getCohesion();
+        before_coupling = engine.getCoupling();
+        print "Before: cohesion:%f coupling:%f eps:%f fit:%f" % (before_cohesion, before_coupling, before_eps, before_cohesion / before_coupling)
+
+        iteration = 0
+
+        while True:
+            D = engine.getEvalMatrix()
+            (MoveMethodSet, Score) = engine.getElectMoveMethodCandidateSet(D) 
+            if MoveMethodSet:
+                engine.updateMembershipMatrix(MoveMethodSet)
+            else:
+                quit()
+
+            after_cohesion = engine.getCohesion();
+            after_coupling = engine.getCoupling();
+            after_eps = engine.getEntityPlacement();
+            iteration = iteration + 1
+            print "Iteration %d:  cohesion:%f coupling:%f eps:%f fit:%f DScore:%f" % (iteration, after_cohesion, after_coupling, after_eps, after_cohesion / after_coupling, Score)
+
+    if sys.argv[1] == "step":
+        model = MRModel()
+        model.load(modelfile)
+        engine = MREngine()
+        engine.initialize(model)
+
+        before_eps = engine.getEntityPlacement();
+        before_cohesion = engine.getCohesion();
+        before_coupling = engine.getCoupling();
+        print "Before: cohesion:%f coupling:%f eps:%f fit:%f" % (before_cohesion, before_coupling, before_eps, before_cohesion / before_coupling)
+
+        iteration = 0
+
+        while True:
+            MoveMethod = engine.electMoveMethodBasedEPM()
+            if MoveMethod:
+                engine.updateMembershipMatrix([MoveMethod])
+            else:
+                quit()
+            after_cohesion = engine.getCohesion();
+            after_coupling = engine.getCoupling();
+            after_eps = engine.getEntityPlacement();
+            iteration = iteration + 1
+            print "Iteration %d:  cohesion:%f coupling:%f eps:%f fit:%f" % (iteration, after_cohesion, after_coupling, after_eps, after_cohesion / after_coupling)
 
     if sys.argv[1] == "generate":
-        model = generateRandomModel(3, 6, 6, 18)
+        model = generateRandomModel(3, 5, 5, 12)
         model.save(modelfile)
+
+        model = MRModel()
+        model.load(modelfile)
+        engine = MREngine()
+        engine.initialize(model)
 
 
 if __name__ == "__main__":

@@ -5,6 +5,9 @@ class MRClass:
     name = None
     fields = []
     methods = []
+    eps = 0
+    epsDirty = True
+
     def __init__(self):
         self.fields = []
         self.methods = []
@@ -15,6 +18,16 @@ class MRClass:
 
     def getName(self):
         return self.name
+
+    def isEpsDirty(self):
+        return self.epsDirty
+    def setEpsDirty(self):
+        self.epsDirty = True
+    def setEps(self, eps):
+        self.epsDirty = False
+        self.eps = eps
+    def getEps(self):
+        return self.eps
 
     def addMethod(self, method):
         self.methods.append(method)
@@ -29,8 +42,17 @@ class MRClass:
         self.fields.remove(field)
 
     def moveMethod(self, other, method):
+        self.setEpsDirty()
+        other.setEpsDirty()
         other.addMethod(method)
-        self.removeMethod(method)
+        if method in self.methods:
+            self.removeMethod(method)
+        else:
+            print "there are no method"
+            print self.methods
+            print self.fields
+            print method
+            quit()
 
     def getFields(self):
         return self.fields
@@ -77,3 +99,7 @@ class MRClass:
 
     def __repr__(self):
         return self.getName()
+    def __hash__(self):
+        return hash(self.name)
+    def __eq__(self, other):
+        return self.name == other.name
