@@ -30,9 +30,11 @@ class MRClass:
         return self.eps
 
     def addMethod(self, method):
+        method.setOwner(self.getName())
         self.methods.append(method)
 
     def addField(self, field):
+        field.setOwner(self.getName())
         self.fields.append(field)
 
     def removeMethod(self, method):

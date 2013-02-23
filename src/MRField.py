@@ -12,9 +12,9 @@ class MRField(MREntity):
         ret = "\tfield "
         ret = ret + self.getName() + " {\n"
         for dep in self.incomingDeps:
-            ret = ret + "\t\t<- " + dep.getName() + "\n"
+            ret = ret + "\t\t<- " + dep.getName() + "(" + dep.getOwner() + ")\n"
         for dep in self.outgoingDeps:
-            ret = ret + "\t\t-> " + dep.getName() + "\n"
+            ret = ret + "\t\t-> " + dep.getName() + "(" + dep.getOwner() + ")\n"
         ret = ret + "\t}\n"
         return ret
     def __repr__(self):

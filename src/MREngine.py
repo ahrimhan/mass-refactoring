@@ -23,8 +23,8 @@ def epcHelper(classes):
 
 class MREngine:
     linkMatrix = None
+    #callLinkMatrix = None
     membershipMatrix = None
-    fieldLinkMatrix = None
     model = None
     classes = None
     classIdxMap = None
@@ -34,7 +34,7 @@ class MREngine:
     numMethod = 0
     numField = 0
     independent_set = None
-    fieldsSelectingMatrix = None 
+    #fieldsSelectingMatrix = None 
     methodMembershipMatrix = None
     pool = None
     entitySetCache = {}
@@ -98,19 +98,36 @@ class MREngine:
                 membershipMatrix[entityIdxMap[mrField], i] = 1
         
         linkMatrix = zeros((numMethod + numField, numMethod+numField), dtype='int32')
+        #callLinkMatrix = zeros((numMethod + numField, numMethod+numField), dtype='int32')
 
         for i in range(len(entities)):
             for incomingDep in entities[i].getIncomingDeps():
-                if i != entityIdxMap[incomingDep]:
-                    linkMatrix[i, entityIdxMap[incomingDep]] = 1
-                    linkMatrix[entityIdxMap[incomingDep], i] = 1
+                if i != incomingDep.getIndex():
+                    linkMatrix[i, incomingDep.getIndex()] = linkMatrix[i, incomingDep.getIndex()] + 1
+                    linkMatrix[incomingDep.getIndex(), i] = linkMatrix[incomingDep.getIndex(), i] + 1
+                    #linkMatrix[i, incomingDep.getIndex()] = 1
+                    #linkMatrix[incomingDep.getIndex(), i] = 1
+            #        callLinkMatrix[i, incomingDep.getIndex()] = 1
+            #        callLinkMatrix[incomingDep.getIndex(), i] = 1
                     numDep = numDep + 1
 
-        #for i in range(numMethod, len(entities)):
-        #    for incomingDep in entities[i].getIncomingDeps():
-        #        if i != entityIdxMap[incomingDep]:
-        #            linkMatrix[i, entityIdxMap[incomingDep]] = 2
-        #            linkMatrix[entityIdxMap[incomingDep], i] = 2
+
+        if False:
+            for field in fields:
+                methodDep = []
+                for dep in field.getIncomingDeps():
+                    if dep.isMethod():
+                        methodDep.append(dep)
+                i = 0
+                while i < len(methodDep) - 1:
+                    j = i + 1
+                    while j < len(methodDep):
+                        linkMatrix[methodDep[i].getIndex(), methodDep[j].getIndex()] = linkMatrix[methodDep[i].getIndex(), methodDep[j].getIndex()] + 3
+                        linkMatrix[methodDep[j].getIndex(), methodDep[i].getIndex()] = linkMatrix[methodDep[j].getIndex(), methodDep[i].getIndex()] + 3
+                        j = j + 1
+                    i = i + 1
+
+
 
         methods = None
         fields = None
@@ -118,13 +135,12 @@ class MREngine:
         fsmRow = array(range(self.numMethod, self.numMethod + self.numField))
         fsmCol = array(range(self.numMethod, self.numMethod + self.numField))
         fsmData = array([1] * self.numField)
-        self.fieldsSelectingMatrix = sp.coo_matrix((fsmData, (fsmRow, fsmCol)), shape = (self.numMethod + self.numField, self.numMethod + self.numField)).tocsc()
+        #self.fieldsSelectingMatrix = sp.coo_matrix((fsmData, (fsmRow, fsmCol)), shape = (self.numMethod + self.numField, self.numMethod + self.numField)).tocsc()
 
-        print >> sys.stderr, "Class: %d, Method: %d, Field: %d dep:%d" % (numClass, numMethod, numField, numDep)
+        print "Class: %d, Method: %d, Field: %d dep:%d" % (numClass, numMethod, numField, numDep)
 
         self.linkMatrix = sp.coo_matrix(linkMatrix).tocsr()
-        self.fieldLinkMatrix = self.linkMatrix * self.fieldsSelectingMatrix
-        self.fieldLinkMatrix = self.fieldLinkMatrix.tocsr()
+        #self.callLinkMatrix = sp.coo_matrix(callLinkMatrix).tocsr()
         self.membershipMatrix = sp.coo_matrix(membershipMatrix).tocsr()
         self.classes = classes
         self.classIdxMap = classIdxMap
@@ -132,38 +148,54 @@ class MREngine:
         self.entityIdxMap = entityIdxMap
         self.model = model
         singletonEngine = self
-        print "Initial state"
-        print "Link"
-        print self.linkMatrix.todense()
-        print "Membership"
-        print self.membershipMatrix.todense()
+        #print "Initial state"
+        #print "Link"
+        #print self.linkMatrix.todense()
+        #print "Membership"
+        #print self.membershipMatrix.todense()
+        #print "Class status"
+        #print self.model
 
     def getInternalExternalLinkMatrix(self):
         internal_link_mask = self.membershipMatrix * self.membershipMatrix.T
         internal_link_matrix = self.linkMatrix.multiply(internal_link_mask)
+        #print "internal link"
+        #print internal_link_matrix.todense()
+
         external_link_matrix = self.linkMatrix - internal_link_matrix
+        #print "external link"
+        #print external_link_matrix.todense()
         return (internal_link_matrix, external_link_matrix)
 
     def invertedMembershipMatrix(self, M):
-        new_matrix = ones((len(self.entities), len(self.classes)), dtype='int32')
-        (rows, cols) = M.nonzero()
-        l = 0
-        for p in range(len(self.entities)):
-            if p in rows:
-                j = cols[l]
-                l = l + 1
-                new_matrix[p, j] = 0
-            else:
-                for k in range(len(self.classes)):
-                    new_matrix[p, k] = 0
-        for i in range(len(rows)):
-            new_matrix[i] = new_matrix[i] * M[rows[i], cols[i]]
+        #new_matrix = ones((len(self.entities), len(self.classes)), dtype='int32')
+        #(rows, cols) = M.nonzero()
+        #l = 0
+        #for p in range(len(self.entities)):
+        #    if p in rows:
+        #        j = cols[l]
+        #        l = l + 1
+        #        new_matrix[p, j] = 0
+        #    else:
+        #        for k in range(len(self.classes)):
+        #            new_matrix[p, k] = 0
+        #for i in range(len(rows)):
+        #    new_matrix[i] = new_matrix[i] * M[rows[i], cols[i]]
 
+        #print "inverting..."
+        new_matrix = zeros((len(self.entities), len(self.classes)), dtype='int32')
+        (rows, cols) = M.nonzero()
+        for i in range(len(rows)):
+            v = M[rows[i], cols[i]]
+            for j in range(len(self.classes)):
+                new_matrix[rows[i], j] = v
+            new_matrix[rows[i], cols[i]] = 0
+        #print "inverting...done"
         return sp.coo_matrix(new_matrix)
 
     def getIndependentSets(self):
         if self.independent_set == None:
-            self.independent_set = generateIndependentSets(self.linkMatrix, self.numMethod, self.methods)
+            self.independent_set = generateIndependentSets(self.linkMatrix, self.numMethod)
         return self.independent_set
 
 
@@ -207,10 +239,14 @@ class MREngine:
         if len(methods) == 0:
             return -1
 
-        for funcIdId1 in range(len(methods) - 1):
-            for funcIdId2 in range(funcIdId1 + 1, len(methods)):
+        funcIdId1 = 0
+        while funcIdId1 < (len(methods) - 1):
+            funcIdId2 = funcIdId1 + 1
+            while funcIdId2 < len(methods):
                 pairCount = pairCount+1
                 classCohesion = classCohesion + self.getCohesionForMethodPair(methods[funcIdId1], methods[funcIdId2], clazz)
+                funcIdId2 = funcIdId2 + 1
+            funcIdId1 = funcIdId1 + 1
         if pairCount != 0:
             classCohesion = classCohesion / float(pairCount)
         else:
@@ -227,8 +263,8 @@ class MREngine:
             if classCohesion >= 0:
                 cohesion = cohesion + classCohesion
                 classCount = classCount + 1
-        cohesion = cohesion / classCount
-        return cohesion
+        norm_cohesion = cohesion / classCount
+        return (norm_cohesion, cohesion, classCount)
 
     def getDistance(self, entity, innerClazzEntities):
         ret = None
@@ -312,7 +348,7 @@ class MREngine:
         epsCount = 0
         args = []
         for i in range(len(self.classes)):
-            args.append((i, len(self.classes)))
+            args.append((i, 0))
         
         epsSet = self.pool.map(epcHelper, args)
         for eps in epsSet:
@@ -332,27 +368,48 @@ class MREngine:
 
 
     def getCoupling(self):
-        linkMatrix = self.linkMatrix
-        self.methodMembershipMatrix = self.membershipMatrix[0:self.numMethod, :]
-        (numFunc, numClass) = self.methodMembershipMatrix.shape
         coupling = float(0)
-        for i in range(numClass):
-            (funcIdList, _) = self.methodMembershipMatrix.getcol(i).nonzero()
-            funcIdSet = set(funcIdList)
-            for j in funcIdList:
-                (targetFuncIdList, _) = self.linkMatrix.getcol(j).nonzero()
-                targetFuncIdSet = set(targetFuncIdList)
-                externalCoupledFuncSet = targetFuncIdSet - funcIdSet
-                coupling = coupling + len(externalCoupledFuncSet)
-        coupling = coupling / numClass
-        return coupling
+        for clazz in self.classes:
+            for method in clazz.getMethods():
+                for dep in method.getIncomingDeps():
+                    if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
+                        pass
+                    else:
+                        coupling = coupling + 0.5
+                for dep in method.getOutgoingDeps():
+                    if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
+                        pass
+                    else:
+                        coupling = coupling + 0.5
+
+            for field in clazz.getFields():
+                for dep in field.getIncomingDeps():
+                    if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
+                        pass
+                    else:
+                        coupling = coupling + 0.5
+                for dep in field.getOutgoingDeps():
+                    if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
+                        pass
+                    else:
+                        coupling = coupling + 0.5
+
+        normalized_coupling = coupling / float(len(self.classes)) 
+        return (normalized_coupling, coupling)
                 
     def getEvalMatrix(self):
         (internal_matrix, external_matrix) = self.getInternalExternalLinkMatrix()
         IP = internal_matrix * self.membershipMatrix
+        #print "IP"
+        #print IP.todense()
         EP = external_matrix * self.membershipMatrix
+        #print "EP"
+        #print EP.todense()
         IIP = self.invertedMembershipMatrix(IP)
+        #print "IIP"
+        #print IIP.todense()
         D = IIP - EP
+        #print D.todense()
         return D
 
     def getIndexOfPostiveMoveMethodCandidates(self, D):
@@ -360,6 +417,7 @@ class MREngine:
         PD = PD - absolute(PD)
         PD = PD / 2
         PD = PD.astype('int32')
+        #print PD.todense()
         candidateDict = {}
         (rows, cols) = PD.nonzero()
         for i in range(len(rows)):
@@ -374,6 +432,7 @@ class MREngine:
     def electMoveMethodBasedEPM(self):
         minEps = 1000000.0
         candidate = None
+        searchSpace = 0
         for clazzIdx1 in range(len(self.classes)):
             clazz1 = self.classes[clazzIdx1]
             for method in clazz1.getMethods():
@@ -382,22 +441,44 @@ class MREngine:
                     if clazzIdx1 != clazzIdx2:
                         clazz1.moveMethod(clazz2, method)
                         eps = self.getEntityPlacement()
+                        searchSpace = searchSpace + 1
                         if (eps < minEps) or (candidate == None):
                             minEps = eps
                             candidate = (method.getIndex(), clazzIdx2, 0)
                         clazz2.moveMethod(clazz1, method)
-        return candidate
+        if candidate == None:
+            return (None, 0)
+        return ([candidate], searchSpace)
 
-    def getElectMoveMethodCandidateSet(self, D):
+    def electMoveMethodBasedDM(self, D):
+        candidateDict = self.getIndexOfPostiveMoveMethodCandidates(D)
+        maxScore = 0
+        candidate = None
+        searchSpace = self.numMethod
+        for (methodIdx, (m, c, d)) in candidateDict.items():
+            if d < 0 and (candidate == None or d < maxScore):
+                maxScore = d
+                candidate = (m, c, d)
+
+        if candidate == None:
+            return (None, 0)
+
+        return ([candidate], searchSpace)
+
+    def electMoveMethodSetBasedDM(self, D):
         candidateDict = self.getIndexOfPostiveMoveMethodCandidates(D)
         independentSetSet = self.getIndependentSets()
+        #print "independentSetSet"
+        #print independentSetSet
         maxScore = 0
         maxCandidateSet = None
+        searchSpace = 0
         #print "candidateDict"
         #print candidateDict
         for independentSet in independentSetSet:
             asetScore = 0
             candidateSet = [] 
+            searchSpace = searchSpace + 1
             for methodIdx in independentSet:
                 if methodIdx in candidateDict:
                     (m, c, d) = candidateDict[methodIdx]
@@ -407,7 +488,19 @@ class MREngine:
             if asetScore < maxScore:
                 maxScore = asetScore
                 maxCandidateSet = candidateSet
-        return (maxCandidateSet, maxScore)
+        return (maxCandidateSet, searchSpace)
+
+
+    def electMoveMethodSetBasedDMwithoutDep(self, D):
+        candidateDict = self.getIndexOfPostiveMoveMethodCandidates(D)
+        candidateSet = []
+        searchSpace = 1
+        for (methodIdx, (m, c, d)) in candidateDict.items():
+            if d < 0 :
+                candidateSet.append((m, c, d))
+        if len(candidateSet) == 0:
+            return (None, 0)
+        return (candidateSet, searchSpace)
 
     def updateMembershipMatrix(self, moveMethodSet):
         #print "Before update"
@@ -421,7 +514,10 @@ class MREngine:
             flag = 0
             for cc in oldContainingClassIdxList:
                 if self.membershipMatrix[m, cc] == 1:
+                    #(norm_coupling, raw_coupling) = self.getCoupling()
+                    #print "before: coupling:%d diff:%d" % ( raw_coupling, d)
                     self.membershipMatrix[m, cc] = 0
+
                     #print "fromIdx:",
                     #print cc,
                     #print " ",
@@ -432,6 +528,11 @@ class MREngine:
                     toClass = self.classes[c]
                     movingMethod = self.entities[m]
                     fromClass.moveMethod(toClass, movingMethod)
+
+                    #(norm_coupling, raw_coupling) = self.getCoupling()
+                    #print "after: coupling:%d diff:%d" % ( raw_coupling, d)
+                    #print (self.entities[m], self.classes[c], d)
+
                     flag = 1
                     break
                 else:
@@ -439,17 +540,18 @@ class MREngine:
                     quit()
 
             if flag == 0:
-                print "update"
-                print (m, c, d)
-                print "oooppppssss"
-                quit()
+                continue
         #print "After update"
         #print "Link"
         #print self.linkMatrix.todense()
+        #print "CallLink"
+        #print self.callLinkMatrix.todense()
         #print "Membership"
         #print self.membershipMatrix.todense()
         #print "Class status"
         #print self.model
+    def getMethodNum(self):
+        return self.numMethod
 
     def __repr__(self):
         return self.getName()

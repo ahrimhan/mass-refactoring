@@ -6,6 +6,7 @@ from pprint import pprint
 from MRClass import *
 from generateRandomModel import *
 from MREngine import *
+import time
 
 CURDIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -50,76 +51,73 @@ class MRModel:
 
 
 def main():
-    if len(sys.argv) != 3:
-        print "Usage: %s [mass|step|generate] [modelfile]" % sys.argv[0]
+    refactoring_args = ["mass-with-dep", "mass-without-dep", "step-epm", "step-dm"]
+    if len(sys.argv) != 3 or (sys.argv[1] != "generate" and (not (sys.argv[1] in refactoring_args))):
+        print "Usage: %s [mass-with-dep|mass-without-dep|step-epm|step-dm|generate] [modelfile]" % sys.argv[0]
         sys.exit(1)
 
-    if sys.argv[1] != "mass" and sys.argv[1] != "generate" and sys.argv[1] != "step":
-        print "Usage: %s [mass|step|generate] [modelfile]" % sys.argv[0]
-        sys.exit(1)
-
-    try:
-        modelfile = sys.argv[2]
-    except Exception:
-        print "Usage: %s [mass|step|generate] [modelfile]" % sys.argv[0]
-        sys.exit(1)
+    modelfile = sys.argv[2]
 
     modelfile = os.path.join(CURDIR, modelfile)
+    start_time = time.time()
 
-    if sys.argv[1] == "mass":
+    if sys.argv[1] in refactoring_args:
+        refactoring_type = sys.argv[1]
         model = MRModel()
         model.load(modelfile)
         engine = MREngine()
         engine.initialize(model)
 
-        before_eps = engine.getEntityPlacement();
-        before_cohesion = engine.getCohesion();
-        before_coupling = engine.getCoupling();
-        print "Before: cohesion:%f coupling:%f eps:%f fit:%f" % (before_cohesion, before_coupling, before_eps, before_cohesion / before_coupling)
+        #before_eps = engine.getEntityPlacement();
+        (before_cohesion, raw_cohesion, cohesionClassCount) = engine.getCohesion();
+        (before_coupling, raw_coupling) = engine.getCoupling();
+        print "Before: cohesion:%f coupling:%f raw_coupling:%f fit:%f" % (before_cohesion, before_coupling, raw_coupling, before_cohesion / before_coupling),
+        print ""
 
         iteration = 0
+        refactoring_total = 0
+        searchSpace = 0
+        expected_coupling = raw_coupling
+        exhaustiveSpace = 0
 
+        print "Iter\tMSC\tMPC\tFit\tRefactoring #\tRef Accumulated #\texpected coupling\tactual coupling\tsearch space\telapsed time\texhaustive space"
         while True:
-            D = engine.getEvalMatrix()
-            (MoveMethodSet, Score) = engine.getElectMoveMethodCandidateSet(D) 
+            if refactoring_type == "mass-with-dep":
+                D = engine.getEvalMatrix()
+                (MoveMethodSet, ss) = engine.electMoveMethodSetBasedDM(D)
+            elif refactoring_type == "mass-without-dep":
+                D = engine.getEvalMatrix()
+                (MoveMethodSet, ss) = engine.electMoveMethodSetBasedDMwithoutDep(D)
+            elif refactoring_type == "step-epm":
+                (MoveMethodSet, ss) = engine.electMoveMethodBasedEPM()
+            elif refactoring_type == "step-dm":
+                D = engine.getEvalMatrix()
+                (MoveMethodSet, ss) = engine.electMoveMethodBasedDM(D)
+
+            searchSpace = searchSpace + ss
+
             if MoveMethodSet:
                 engine.updateMembershipMatrix(MoveMethodSet)
             else:
                 quit()
 
-            after_cohesion = engine.getCohesion();
-            after_coupling = engine.getCoupling();
-            after_eps = engine.getEntityPlacement();
+            (after_cohesion, raw_cohesion, cohesionClassCount) = engine.getCohesion();
+            (after_coupling, raw_coupling) = engine.getCoupling();
+
+            for (m, c, d) in MoveMethodSet:
+                expected_coupling = expected_coupling + d
+
+            #after_eps = engine.getEntityPlacement();
             iteration = iteration + 1
-            print "Iteration %d:  cohesion:%f coupling:%f eps:%f fit:%f DScore:%f" % (iteration, after_cohesion, after_coupling, after_eps, after_cohesion / after_coupling, Score)
+            refactoring_total = refactoring_total + len(MoveMethodSet)
+            exhaustiveSpace = exhaustiveSpace + (engine.getMethodNum() ** iteration)
 
-    if sys.argv[1] == "step":
-        model = MRModel()
-        model.load(modelfile)
-        engine = MREngine()
-        engine.initialize(model)
+            print "%d\t%.10f\t%.10f\t%.10f\t%d\t%d\t%d\t%d\t%d\t%.2f\t%d" % (iteration, after_cohesion, after_coupling, after_cohesion / after_coupling, len(MoveMethodSet), refactoring_total, expected_coupling, raw_coupling, searchSpace, (time.time() - start_time), exhaustiveSpace)
 
-        before_eps = engine.getEntityPlacement();
-        before_cohesion = engine.getCohesion();
-        before_coupling = engine.getCoupling();
-        print "Before: cohesion:%f coupling:%f eps:%f fit:%f" % (before_cohesion, before_coupling, before_eps, before_cohesion / before_coupling)
-
-        iteration = 0
-
-        while True:
-            MoveMethod = engine.electMoveMethodBasedEPM()
-            if MoveMethod:
-                engine.updateMembershipMatrix([MoveMethod])
-            else:
-                quit()
-            after_cohesion = engine.getCohesion();
-            after_coupling = engine.getCoupling();
-            after_eps = engine.getEntityPlacement();
-            iteration = iteration + 1
-            print "Iteration %d:  cohesion:%f coupling:%f eps:%f fit:%f" % (iteration, after_cohesion, after_coupling, after_eps, after_cohesion / after_coupling)
 
     if sys.argv[1] == "generate":
-        model = generateRandomModel(3, 5, 5, 12)
+        #model = generateRandomModel(25, 200, 120, 1000)
+        model = generateRandomModel(5, 5, 5, 20)
         model.save(modelfile)
 
         model = MRModel()

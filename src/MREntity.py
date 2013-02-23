@@ -8,6 +8,7 @@ class MREntity:
     incomingDeps = []
     outgoingDeps = []
     index = 0
+    owner = None
 
     def __init__(self):
         self.incomingDeps = []
@@ -48,6 +49,12 @@ class MREntity:
 
     def getOutgoingDeps(self):
         return self.outgoingDeps
+
+    def setOwner(self, owner):
+        self.owner = owner
+
+    def getOwner(self):
+        return self.owner
 
     def resolve(self, entity_dict):
         self.incomingDeps= self.resolve_entity(self.incomingDeps, entity_dict)
