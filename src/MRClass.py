@@ -8,6 +8,12 @@ class MRClass:
     eps = 0
     epsDirty = True
 
+    cohesion = 0
+    cohesionDirty = True
+    
+    coupling = 0
+    couplingDirty = True
+
     def __init__(self):
         self.fields = []
         self.methods = []
@@ -29,6 +35,26 @@ class MRClass:
     def getEps(self):
         return self.eps
 
+    def isCohesionDirty(self):
+        return self.cohesionDirty
+    def setCohesionDirty(self):
+        self.cohesionDirty = True
+    def setCohesion(self, cohesion):
+        self.cohesionDirty = False
+        self.cohesion = cohesion
+    def getCohesion(self):
+        return self.cohesion
+
+    def isCouplingDirty(self):
+        return self.couplingDirty
+    def setCouplingDirty(self):
+        self.couplingDirty = True
+    def setCoupling(self, coupling):
+        self.couplingDirty = False
+        self.coupling = coupling
+    def getCoupling(self):
+        return self.coupling
+
     def addMethod(self, method):
         method.setOwner(self.getName())
         self.methods.append(method)
@@ -45,7 +71,11 @@ class MRClass:
 
     def moveMethod(self, other, method):
         self.setEpsDirty()
+        self.setCohesionDirty()
+        self.setCouplingDirty()
         other.setEpsDirty()
+        other.setCohesionDirty()
+        other.setCouplingDirty()
         other.addMethod(method)
         if method in self.methods:
             self.removeMethod(method)

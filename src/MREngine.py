@@ -1,4 +1,5 @@
 from MRModel import *
+import time
 from MREntity import *
 import sys
 from MRMethod import *
@@ -141,7 +142,8 @@ class MREngine:
 
         self.linkMatrix = sp.coo_matrix(linkMatrix).tocsr()
         #self.callLinkMatrix = sp.coo_matrix(callLinkMatrix).tocsr()
-        self.membershipMatrix = sp.coo_matrix(membershipMatrix).tocsr()
+        #self.membershipMatrix = sp.coo_matrix(membershipMatrix).tocsr()
+        self.membershipMatrix = sp.coo_matrix(membershipMatrix).tolil()
         self.classes = classes
         self.classIdxMap = classIdxMap
         self.entities = entities
@@ -168,6 +170,10 @@ class MREngine:
         return (internal_link_matrix, external_link_matrix)
 
     def invertedMembershipMatrix(self, M):
+        #print "before"
+        #print M.todense()
+        #invertingTime = time.time()
+
         #new_matrix = ones((len(self.entities), len(self.classes)), dtype='int32')
         #(rows, cols) = M.nonzero()
         #l = 0
@@ -177,21 +183,26 @@ class MREngine:
         #        l = l + 1
         #        new_matrix[p, j] = 0
         #    else:
-        #        for k in range(len(self.classes)):
-        #            new_matrix[p, k] = 0
+        #        new_matrix[p, :] = new_matrix[p, :] * 0
+        #
         #for i in range(len(rows)):
-        #    new_matrix[i] = new_matrix[i] * M[rows[i], cols[i]]
+        #    new_matrix[rows[i], :] = new_matrix[rows[i], :] * M[rows[i], cols[i]]
 
         #print "inverting..."
         new_matrix = zeros((len(self.entities), len(self.classes)), dtype='int32')
         (rows, cols) = M.nonzero()
         for i in range(len(rows)):
             v = M[rows[i], cols[i]]
-            for j in range(len(self.classes)):
-                new_matrix[rows[i], j] = v
+            new_matrix[rows[i], :] = new_matrix[rows[i], :] + v
             new_matrix[rows[i], cols[i]] = 0
-        #print "inverting...done"
-        return sp.coo_matrix(new_matrix)
+
+        #print "after"
+        #print new_matrix
+
+        ret  = sp.coo_matrix(new_matrix)
+
+        #print "inverting time:%f" % (time.time() - invertingTime)
+        return ret
 
     def getIndependentSets(self):
         if self.independent_set == None:
@@ -205,8 +216,8 @@ class MREngine:
         attrSet1 = set()
         attrSet2 = set()
         ret = 0
-        #if (method1, method2) in self.methodPairDistanceCache:
-        #    return self.methodPairDistanceCache[(method1, method2)]
+        if (method1, method2) in self.methodPairDistanceCache:
+            return self.methodPairDistanceCache[(method1, method2)]
 
         for deps in method1.outgoingDeps:
             if not deps.isMethod():
@@ -226,8 +237,8 @@ class MREngine:
             ret = 0
         else:
             ret = float(interLen) / float(unionLen)
-        #self.methodPairDistanceCache[(method1, method2)] = ret
-        #self.methodPairDistanceCache[(method2, method1)] = ret
+        self.methodPairDistanceCache[(method1, method2)] = ret
+        self.methodPairDistanceCache[(method2, method1)] = ret
         return ret
 
     def getCohesionForClass(self, clazz):
@@ -259,7 +270,12 @@ class MREngine:
         cohesion = 0
         classCount = 0
         for clazz in self.classes:
-            classCohesion = self.getCohesionForClass(clazz)
+            if clazz.isCohesionDirty():
+                classCohesion = self.getCohesionForClass(clazz)
+                clazz.setCohesion(classCohesion)
+            else:
+                classCohesion = clazz.getCohesion()
+
             if classCohesion >= 0:
                 cohesion = cohesion + classCohesion
                 classCount = classCount + 1
@@ -268,14 +284,20 @@ class MREngine:
 
     def getDistance(self, entity, innerClazzEntities):
         ret = None
-        if entity in self.entitySetCache:
-            ret = self.entitySetCache[entity]
+        #if entity in self.entitySetCache:
+        #    ret = self.entitySetCache[entity]
+        #else:
+        #    if entity.isMethod():
+        #        ret = frozenset(entity.getOutgoingDeps())
+        #    else:
+        #        ret = frozenset(entity.getIncomingDeps())
+        #    self.entitySetCache[entity] = ret
+
+        if entity.isMethod():
+            ret = frozenset(entity.getOutgoingDeps())
         else:
-            if entity.isMethod():
-                ret = frozenset(entity.getOutgoingDeps())
-            else:
-                ret = frozenset(entity.getIncomingDeps())
-            self.entitySetCache[entity] = ret
+            ret = frozenset(entity.getIncomingDeps())
+        self.entitySetCache[entity] = ret
         se = ret
         sc = innerClazzEntities
         unionlen = len(se | sc)
@@ -342,7 +364,7 @@ class MREngine:
 
     def getEntityPlacement(self):
         self.pool = Pool(processes=4)
-        self.entitySetCache.clear()
+        #self.entitySetCache.clear()
 
         epsTotal = 0
         epsCount = 0
@@ -370,29 +392,37 @@ class MREngine:
     def getCoupling(self):
         coupling = float(0)
         for clazz in self.classes:
-            for method in clazz.getMethods():
-                for dep in method.getIncomingDeps():
-                    if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
-                        pass
-                    else:
-                        coupling = coupling + 0.5
-                for dep in method.getOutgoingDeps():
-                    if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
-                        pass
-                    else:
-                        coupling = coupling + 0.5
+            classCoupling = 0
+            if clazz.isCouplingDirty():
+                for method in clazz.getMethods():
+#                for dep in method.getIncomingDeps():
+#                    if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
+#                        pass
+#                    else:
+#                        coupling = coupling + 0.5
+                    for dep in method.getOutgoingDeps():
+                        if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
+                            pass
+                        else:
+                            classCoupling = classCoupling + 1
 
-            for field in clazz.getFields():
-                for dep in field.getIncomingDeps():
-                    if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
-                        pass
-                    else:
-                        coupling = coupling + 0.5
-                for dep in field.getOutgoingDeps():
-                    if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
-                        pass
-                    else:
-                        coupling = coupling + 0.5
+                for field in clazz.getFields():
+#                for dep in field.getIncomingDeps():
+#                    if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
+#                        pass
+#                    else:
+#                        coupling = coupling + 0.5
+                    for dep in field.getOutgoingDeps():
+                        if (dep in clazz.getMethods()) or (dep in clazz.getFields()):
+                            pass
+                        else:
+                            classCoupling = classCoupling + 1
+
+                clazz.setCoupling(classCoupling)
+            else:
+                classCoupling = clazz.getCoupling()
+
+            coupling = coupling + classCoupling
 
         normalized_coupling = coupling / float(len(self.classes)) 
         return (normalized_coupling, coupling)
@@ -403,9 +433,13 @@ class MREngine:
         #print "IP"
         #print IP.todense()
         EP = external_matrix * self.membershipMatrix
+
+
         #print "EP"
         #print EP.todense()
         IIP = self.invertedMembershipMatrix(IP)
+
+
         #print "IIP"
         #print IIP.todense()
         D = IIP - EP
@@ -455,7 +489,7 @@ class MREngine:
         maxScore = 0
         candidate = None
         searchSpace = self.numMethod
-        for (methodIdx, (m, c, d)) in candidateDict.items():
+        for methodIdx, (m, c, d) in candidateDict.iteritems():
             if d < 0 and (candidate == None or d < maxScore):
                 maxScore = d
                 candidate = (m, c, d)
@@ -541,6 +575,8 @@ class MREngine:
 
             if flag == 0:
                 continue
+        #self.membershipMatrix.eliminate_zeros()
+        #self.membershipMatrix.prune()
         #print "After update"
         #print "Link"
         #print self.linkMatrix.todense()

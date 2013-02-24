@@ -82,6 +82,8 @@ def main():
 
         print "Iter\tMSC\tMPC\tFit\tRefactoring #\tRef Accumulated #\texpected coupling\tactual coupling\tsearch space\telapsed time\texhaustive space"
         while True:
+            #electAndUpdateTime = time.time()
+
             if refactoring_type == "mass-with-dep":
                 D = engine.getEvalMatrix()
                 (MoveMethodSet, ss) = engine.electMoveMethodSetBasedDM(D)
@@ -94,12 +96,19 @@ def main():
                 D = engine.getEvalMatrix()
                 (MoveMethodSet, ss) = engine.electMoveMethodBasedDM(D)
 
+            #electAndUpdateTime = time.time() - electAndUpdateTime
+            #print "elect time:%.3f" % electAndUpdateTime
+            #electAndUpdateTime = time.time()
+
             searchSpace = searchSpace + ss
 
             if MoveMethodSet:
                 engine.updateMembershipMatrix(MoveMethodSet)
             else:
                 quit()
+
+            #electAndUpdateTime = time.time() - electAndUpdateTime
+            #print "update time:%.3f" % electAndUpdateTime
 
             (after_cohesion, raw_cohesion, cohesionClassCount) = engine.getCohesion();
             (after_coupling, raw_coupling) = engine.getCoupling();
@@ -110,9 +119,13 @@ def main():
             #after_eps = engine.getEntityPlacement();
             iteration = iteration + 1
             refactoring_total = refactoring_total + len(MoveMethodSet)
-            exhaustiveSpace = exhaustiveSpace + (engine.getMethodNum() ** iteration)
 
-            print "%d\t%.10f\t%.10f\t%.10f\t%d\t%d\t%d\t%d\t%d\t%.2f\t%d" % (iteration, after_cohesion, after_coupling, after_cohesion / after_coupling, len(MoveMethodSet), refactoring_total, expected_coupling, raw_coupling, searchSpace, (time.time() - start_time), exhaustiveSpace)
+            #exhaustiveSpace = exhaustiveSpace + (engine.getMethodNum() ** iteration)
+
+            print "%d\t%.10f\t%.10f\t%.10f\t%d\t%d\t%d\t%d\t%d\t%.2f" % (iteration, after_cohesion, after_coupling, after_cohesion / after_coupling, len(MoveMethodSet), refactoring_total, expected_coupling, raw_coupling, searchSpace, (time.time() - start_time))# exhaustiveSpace)
+
+            if iteration >= 200:
+                quit()
 
 
     if sys.argv[1] == "generate":
