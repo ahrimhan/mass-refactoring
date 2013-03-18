@@ -71,7 +71,9 @@ def main():
         #before_eps = engine.getEntityPlacement();
         (before_cohesion, raw_cohesion, cohesionClassCount) = engine.getCohesion();
         (before_coupling, raw_coupling) = engine.getCoupling();
-        print "Before: cohesion:%f coupling:%f raw_coupling:%f fit:%f" % (before_cohesion, before_coupling, raw_coupling, before_cohesion / before_coupling),
+        #print "Before: cohesion:%f coupling:%f raw_coupling:%f fit:%f" % (before_cohesion, before_coupling, raw_coupling, before_cohesion / before_coupling),
+        print "Iter\tMSC\tMPC\tFit\tRefactoring #\tRef Accumulated #\texpected coupling\tactual coupling\tsearch space\telapsed time\texhaustive space"
+        print "%d\t%.10f\t%.10f\t%.10f\t%d\t%d\t%d\t%d\t%d\t%.2f" % (0, before_cohesion, before_coupling, before_cohesion / before_coupling, 0, 0, 0, raw_coupling, 0, 0)# exhaustiveSpace)
         print ""
 
         iteration = 0
@@ -79,8 +81,8 @@ def main():
         searchSpace = 0
         expected_coupling = raw_coupling
         exhaustiveSpace = 0
+        moveMethodSetLen = 0
 
-        print "Iter\tMSC\tMPC\tFit\tRefactoring #\tRef Accumulated #\texpected coupling\tactual coupling\tsearch space\telapsed time\texhaustive space"
         while True:
             #electAndUpdateTime = time.time()
 
@@ -105,11 +107,16 @@ def main():
             if MoveMethodSet:
                 engine.updateMembershipMatrix(MoveMethodSet)
             else:
-                quit()
+                break
 
             #electAndUpdateTime = time.time() - electAndUpdateTime
             #print "update time:%.3f" % electAndUpdateTime
 
+            refactoring_total = refactoring_total + len(MoveMethodSet)
+            iteration = iteration + 1
+            moveMethodSetLen = len(MoveMethodSet)
+
+            #if iteration % 10 == 0 or not (refactoring_type == "step-dm"):
             (after_cohesion, raw_cohesion, cohesionClassCount) = engine.getCohesion();
             (after_coupling, raw_coupling) = engine.getCoupling();
 
@@ -117,16 +124,16 @@ def main():
                 expected_coupling = expected_coupling + d
 
             #after_eps = engine.getEntityPlacement();
-            iteration = iteration + 1
-            refactoring_total = refactoring_total + len(MoveMethodSet)
 
             #exhaustiveSpace = exhaustiveSpace + (engine.getMethodNum() ** iteration)
 
-            print "%d\t%.10f\t%.10f\t%.10f\t%d\t%d\t%d\t%d\t%d\t%.2f" % (iteration, after_cohesion, after_coupling, after_cohesion / after_coupling, len(MoveMethodSet), refactoring_total, expected_coupling, raw_coupling, searchSpace, (time.time() - start_time))# exhaustiveSpace)
+            print "%d\t%.10f\t%.10f\t%.10f\t%d\t%d\t%d\t%d\t%d\t%.2f" % (iteration, after_cohesion, after_coupling, after_cohesion / after_coupling, moveMethodSetLen, refactoring_total, expected_coupling, raw_coupling, searchSpace, (time.time() - start_time))# exhaustiveSpace)
 
-            if iteration >= 200:
-                quit()
-
+            if iteration >= 10000:
+                break
+        
+        #if (iteration % 10) != 0 and refactoring_type == "step-dm":
+        #    print "%d\t%.10f\t%.10f\t%.10f\t%d\t%d\t%d\t%d\t%d\t%.2f" % (iteration, after_cohesion, after_coupling, after_cohesion / after_coupling, moveMethodSetLen, refactoring_total, expected_coupling, raw_coupling, searchSpace, (time.time() - start_time))# exhaustiveSpace)
 
     if sys.argv[1] == "generate":
         #model = generateRandomModel(25, 200, 120, 1000)
