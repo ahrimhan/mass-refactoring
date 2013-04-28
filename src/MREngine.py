@@ -430,20 +430,9 @@ class MREngine:
     def getEvalMatrix(self):
         (internal_matrix, external_matrix) = self.getInternalExternalLinkMatrix()
         IP = internal_matrix * self.membershipMatrix
-        #print "IP"
-        #print IP.todense()
         EP = external_matrix * self.membershipMatrix
-
-
-        #print "EP"
-        #print EP.todense()
         IIP = self.invertedMembershipMatrix(IP)
-
-
-        #print "IIP"
-        #print IIP.todense()
         D = IIP - EP
-        #print D.todense()
         return D
 
     def getIndexOfPostiveMoveMethodCandidates(self, D):
