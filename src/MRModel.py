@@ -7,8 +7,19 @@ from MRClass import *
 from generateRandomModel import *
 from MREngine import *
 import time
+import resource
+import datetime
+import thread
 
 CURDIR = os.path.abspath(os.path.dirname(__file__))
+
+global loop
+loop = True
+
+def using(point=""):
+    usage=resource.getrusage(resource.RUSAGE_SELF)
+    return '''%s: maxrss=%f ixrss=%f idrss=%f isrss=%f
+           '''%(point,usage[2]/1000000.0,usage[3]/1000000.0, usage[4]/1000000.0, usage[5]/1000000.0 )
 
 class MRModel:
     classes = []
@@ -29,6 +40,10 @@ class MRModel:
 
         for mrClass in self.classes:
             mrClass.resolve(self.entity_dict)
+
+        for mrClass in self.classes:
+            mrClass.removeSetter()
+
     def addClass(self, mrClass):
         self.classes.append(mrClass)
 
@@ -49,6 +64,12 @@ class MRModel:
         json.dump(class_data_list, raw_data)
         raw_data.close()
 
+def monitorThreadFunc():
+    global loop
+    while loop:
+        print >> sys.stderr, using(str(datetime.datetime.now()))
+        time.sleep(1)
+
 
 def main():
     refactoring_args = ["mass-with-dep", "mass-without-dep", "step-epm", "step-dm"]
@@ -60,6 +81,8 @@ def main():
 
     modelfile = os.path.join(CURDIR, modelfile)
     start_time = time.time()
+
+    thread.start_new_thread(monitorThreadFunc, ())
 
     if sys.argv[1] in refactoring_args:
         refactoring_type = sys.argv[1]
@@ -104,6 +127,9 @@ def main():
 
             searchSpace = searchSpace + ss
 
+            print "----------- move method set------------ "
+            print MoveMethodSet
+
             if MoveMethodSet:
                 engine.updateMembershipMatrix(MoveMethodSet)
             else:
@@ -119,6 +145,8 @@ def main():
             #if iteration % 10 == 0 or not (refactoring_type == "step-dm"):
             (after_cohesion, raw_cohesion, cohesionClassCount) = engine.getCohesion();
             (after_coupling, raw_coupling) = engine.getCoupling();
+            #(after_cohesion, raw_cohesion, cohesionClassCount) = (1, 1, 1)
+            #(after_coupling, raw_coupling) = (1, 1)
 
             for (m, c, d) in MoveMethodSet:
                 expected_coupling = expected_coupling + d
@@ -129,12 +157,14 @@ def main():
 
             print "%d\t%.10f\t%.10f\t%.10f\t%d\t%d\t%d\t%d\t%d\t%.2f" % (iteration, after_cohesion, after_coupling, after_cohesion / after_coupling, moveMethodSetLen, refactoring_total, expected_coupling, raw_coupling, searchSpace, (time.time() - start_time))# exhaustiveSpace)
 
+
             if iteration >= 10000:
                 break
         
         #if (iteration % 10) != 0 and refactoring_type == "step-dm":
         #    print "%d\t%.10f\t%.10f\t%.10f\t%d\t%d\t%d\t%d\t%d\t%.2f" % (iteration, after_cohesion, after_coupling, after_cohesion / after_coupling, moveMethodSetLen, refactoring_total, expected_coupling, raw_coupling, searchSpace, (time.time() - start_time))# exhaustiveSpace)
 
+    loop = False
     if sys.argv[1] == "generate":
         #model = generateRandomModel(25, 200, 120, 1000)
         model = generateRandomModel(5, 5, 5, 20)

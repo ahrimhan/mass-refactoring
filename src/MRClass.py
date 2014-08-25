@@ -92,6 +92,38 @@ class MRClass:
     def getMethods(self):
         return self.methods
 
+    def removeSetter(self):
+        for mrMethod in self.methods[:]:
+            methodShortName = mrMethod.getName().split(":", 1)[0]
+            methodShortName = methodShortName.rsplit(".", 1)[-1]
+            if methodShortName.startswith("set"):
+                if len(mrMethod.getOutgoingDeps()) < 4:
+                    for dep in list(mrMethod.getOutgoingDeps()):
+                        if not dep.isMethod():
+                            removename = methodShortName[3:].lower()
+                            if dep.getName().lower().find(removename) != -1:
+                                self.methods.remove(mrMethod)
+                                #print "%s <- %s  <<%s, %s<<" %( dep.getName(), mrMethod.getName(), methodShortName, removename )
+                                for indep in mrMethod.getIncomingDeps():
+                                    dep.addIncomingDep(indep)
+                                break
+                elif len(mrMethod.getOutgoingDeps()) == 0:
+                    self.methods.remove(mrMethod)
+
+            elif methodShortName.startswith("get"):
+                if len(mrMethod.getOutgoingDeps()) < 4:
+                    for dep in list(mrMethod.getOutgoingDeps()):
+                        if not dep.isMethod():
+                            removename = methodShortName[3:].lower()
+                            if dep.getName().lower().find(removename) != -1:
+                                self.methods.remove(mrMethod)
+                                #print "%s <- %s  >>%s, %s>>" %( dep.getName(), mrMethod.getName(), methodShortName, removename )
+                                for indep in mrMethod.getIncomingDeps():
+                                    dep.addIncomingDep(indep)
+                                break
+                elif len(mrMethod.getOutgoingDeps()) == 0:
+                    self.methods.remove(mrMethod)
+
     def loadData(self, class_data, entity_dict):
         self.setName(class_data["name"])
         self.fields = []
@@ -104,6 +136,7 @@ class MRClass:
                 mrMethod = MRMethod()
                 mrMethod.loadData(method_data, entity_dict)
                 self.addMethod(mrMethod)
+
     def saveData(self):
         fields_data = []
         methods_data = []

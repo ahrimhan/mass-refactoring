@@ -5,14 +5,20 @@ def if_else(condition, a, b) :
 
 class MREntity:
     name = None
-    incomingDeps = []
-    outgoingDeps = []
+    incomingDeps = set()
+    outgoingDeps = set()
+    incomingDepsIndices = set()
+    idil = 0
+    outgoingDepsIndices = set()
+    odil = 0
     index = 0
     owner = None
 
     def __init__(self):
-        self.incomingDeps = []
-        self.outgoingDeps = []
+        self.incomingDeps = set()
+        self.outgoingDeps = set()
+        self.incomingDepsIndices = set()
+        self.outgoingDepsIndices = set()
 
     def setName(self, name):
         self.name = name
@@ -33,13 +39,13 @@ class MREntity:
         return self.index
 
     def addIncomingDep(self, dep):
-        self.incomingDeps.append(dep)
+        self.incomingDeps.add(dep)
 
     def removeIncomingDep(self, dep):
         self.incomingDeps.remove(dep)
 
     def addOutgoingDep(self, dep):
-        self.outgoingDeps.append(dep)
+        self.outgoingDeps.add(dep)
 
     def removeOutgoingDep(self, dep):
         self.outgoingDeps.remove(dep)
@@ -47,8 +53,14 @@ class MREntity:
     def getIncomingDeps(self):
         return self.incomingDeps
 
+    def getIncomingDepsIndices(self):
+        return (self.incomingDepsIndices, self.idil)
+
     def getOutgoingDeps(self):
         return self.outgoingDeps
+
+    def getOutgoingDepsIndices(self):
+        return (self.outgoingDepsIndices, self.odil)
 
     def setOwner(self, owner):
         self.owner = owner
@@ -61,17 +73,27 @@ class MREntity:
         self.outgoingDeps= self.resolve_entity(self.outgoingDeps, entity_dict)
 
     def resolve_entity(self, depList, entity_dict):
-        retDepList = []
+        retDepList = set()
         for dep in depList:
             if dep in entity_dict:
-                retDepList.append(entity_dict[dep])
+                retDepList.add(entity_dict[dep])
         return retDepList
+
+    def resetDepIndices(self):
+        self.incomingDepsIndices.clear()
+        self.outgoingDepsIndices.clear()
+        for incomingDep in self.incomingDeps:
+            self.incomingDepsIndices.add(incomingDep.getIndex())
+        for outgoingDep in self.outgoingDeps:
+            self.outgoingDepsIndices.add(outgoingDep.getIndex())
+        self.idil = len(self.incomingDepsIndices)
+        self.odil = len(self.outgoingDepsIndices)
 
     def loadData(self, entity_data, entity_dict):
         self.setName(entity_data["name"])
         entity_dict[self.name] = self
-        self.incomingDeps = []
-        self.outgoingDeps = []
+        self.incomingDeps = set()
+        self.outgoingDeps = set()
         if "incomingDeps" in entity_data:
             for incoming_entity in entity_data["incomingDeps"]:
                 self.addIncomingDep(incoming_entity)

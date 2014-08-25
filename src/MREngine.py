@@ -38,7 +38,6 @@ class MREngine:
     #fieldsSelectingMatrix = None 
     methodMembershipMatrix = None
     pool = None
-    entitySetCache = {}
     methods = None
 
     def initialize(self, model):
@@ -69,6 +68,8 @@ class MREngine:
         fields = []
         for mrClass in model.getClasses():
             for mrMethod in mrClass.getMethods():
+                if mrMethod.getName() == "org.eclipse.jgit.treewalk.TreeWalk.reset:(Lorg.eclipse.jgit.lib.AnyObjectId;)V":
+                    print "class Idx = %d" % (classIdxMap[mrClass])        
                 methods.append(mrMethod)
             for mrField in mrClass.getFields():
                 fields.append(mrField)
@@ -86,17 +87,32 @@ class MREngine:
         i = 0
         for mrEntity in entities:
             mrEntity.setIndex(i)
+            if i == 4183:
+                print "-------------------- 4183 --------------------"
+                print mrEntity.getName()
             entityIdxMap[mrEntity] = i
             i = i + 1
 
+        for mrEntity in entities:
+            mrEntity.resetDepIndices()
+
         membershipMatrix = zeros((numMethod + numField, numClass), dtype='int32')
+
+        print range(len(classes))
 
         for i in range(len(classes)):
             mrClass = classes[i]
             for mrMethod in mrClass.getMethods():
+                if mrMethod.getName() == "org.eclipse.jgit.treewalk.TreeWalk.reset:(Lorg.eclipse.jgit.lib.AnyObjectId;)V":
+                    print "-------------------- 4183 --------------------"
+                    print mrMethod.getName()
+                    print mrClass.getName()
+                    print "entityIdxMap:",
+                    print entityIdxMap[mrMethod]
                 membershipMatrix[entityIdxMap[mrMethod], i] = 1
             for mrField in mrClass.getFields():
                 membershipMatrix[entityIdxMap[mrField], i] = 1
+
         
         linkMatrix = zeros((numMethod + numField, numMethod+numField), dtype='int32')
         #callLinkMatrix = zeros((numMethod + numField, numMethod+numField), dtype='int32')
@@ -144,6 +160,7 @@ class MREngine:
         #self.callLinkMatrix = sp.coo_matrix(callLinkMatrix).tocsr()
         #self.membershipMatrix = sp.coo_matrix(membershipMatrix).tocsr()
         self.membershipMatrix = sp.coo_matrix(membershipMatrix).tolil()
+
         self.classes = classes
         self.classIdxMap = classIdxMap
         self.entities = entities
@@ -282,29 +299,32 @@ class MREngine:
         norm_cohesion = cohesion / classCount
         return (norm_cohesion, cohesion, classCount)
 
-    def getDistance(self, entity, innerClazzEntities):
+    def getDistance(self, entity, innerClazzEntities, scl):
         ret = None
-        #if entity in self.entitySetCache:
-        #    ret = self.entitySetCache[entity]
-        #else:
-        #    if entity.isMethod():
-        #        ret = frozenset(entity.getOutgoingDeps())
-        #    else:
-        #        ret = frozenset(entity.getIncomingDeps())
-        #    self.entitySetCache[entity] = ret
 
         if entity.isMethod():
-            ret = frozenset(entity.getOutgoingDeps())
+            (ret, sel) = entity.getOutgoingDepsIndices()
         else:
-            ret = frozenset(entity.getIncomingDeps())
-        self.entitySetCache[entity] = ret
+            (ret, sel) = entity.getIncomingDepsIndices()
         se = ret
         sc = innerClazzEntities
-        unionlen = len(se | sc)
-        interlen = len(se) + len(sc) - unionlen
-        if unionlen == 0:
-            distance = -1
+
+        if (scl + sel) == 0:
+            return -1
+
+        if scl == 0:
+            interlen = 0
+        elif sel == 0:
+            interlen = 0
         else:
+            interlen = len(se & sc)
+
+        if interlen == 0:
+            distance = 1
+        elif interlen == (sel + scl):
+            distance = 0
+        else:
+            unionlen = sel + scl - interlen
             distance = 1 - (interlen / float(unionlen))
         return distance
 
@@ -315,14 +335,17 @@ class MREngine:
         outerDistanceSum = 0
         innerClazzEntityNum = 0
         outerClazzEntityNum = 0
+
+        scl = len(innerClazzEntities)
+
         for entity in self.entities:
-            if entity in innerClazzEntities:
-                innerClazzEntityDistance = self.getDistance(entity, innerClazzEntities - set([entity]))
+            if entity.getIndex() in innerClazzEntities:
+                innerClazzEntityDistance = self.getDistance(entity, innerClazzEntities - set([entity.getIndex()]), scl - 1)
                 if innerClazzEntityDistance >= 0:
                     innerDistanceSum = innerDistanceSum + innerClazzEntityDistance
                     innerClazzEntityNum = innerClazzEntityNum + 1
             else:
-                outerClazzEntityDistance = self.getDistance(entity, innerClazzEntities)
+                outerClazzEntityDistance = self.getDistance(entity, innerClazzEntities, scl)
                 if outerClazzEntityDistance >= 0:
                     outerDistanceSum = outerDistanceSum + outerClazzEntityDistance
                     outerClazzEntityNum = outerClazzEntityNum + 1
@@ -343,7 +366,7 @@ class MREngine:
         if not clazz.isEpsDirty():
             return clazz.getEps()
 
-        innerClazzEntities = set(clazz.getMethods()) | set(clazz.getFields())
+        innerClazzEntities = set([x.getIndex() for x in clazz.getMethods()]) | set([x.getIndex() for x in clazz.getFields()])
         if len(innerClazzEntities) == 0:
             return -1
 
@@ -364,14 +387,14 @@ class MREngine:
 
     def getEntityPlacement(self):
         self.pool = Pool(processes=4)
-        #self.entitySetCache.clear()
 
         epsTotal = 0
         epsCount = 0
+
         args = []
         for i in range(len(self.classes)):
             args.append((i, 0))
-        
+
         epsSet = self.pool.map(epcHelper, args)
         for eps in epsSet:
             if eps >= 0:
@@ -379,11 +402,11 @@ class MREngine:
                 epsCount = epsCount+1
         self.pool.terminate()
 
-        #for clazz in self.classes:
-        #    eps = self.getEntityPlacementWithClass(clazz)
-        #    if eps >= 0:
-        #        epsTotal = epsTotal + eps
-        #        epsCount = epsCount+1
+#        for clazz in self.classes:
+#            eps = self.getEntityPlacementWithClass(clazz)
+#            if eps >= 0:
+#                epsTotal = epsTotal + eps
+#                epsCount = epsCount+1
 
         epsTotal = epsTotal / float(epsCount)
         return epsTotal
@@ -456,19 +479,41 @@ class MREngine:
         minEps = 1000000.0
         candidate = None
         searchSpace = 0
+        candidateList = []
+
         for clazzIdx1 in range(len(self.classes)):
             clazz1 = self.classes[clazzIdx1]
             for method in clazz1.getMethods():
+                
+                candidateListForMethod = []
                 for clazzIdx2 in range(len(self.classes)):
                     clazz2 = self.classes[clazzIdx2]
-                    if clazzIdx1 != clazzIdx2:
-                        clazz1.moveMethod(clazz2, method)
-                        eps = self.getEntityPlacement()
-                        searchSpace = searchSpace + 1
-                        if (eps < minEps) or (candidate == None):
-                            minEps = eps
-                            candidate = (method.getIndex(), clazzIdx2, 0)
-                        clazz2.moveMethod(clazz1, method)
+
+                    start_time = time.time()
+                    innerClazzEntities = set([x.getIndex() for x in clazz2.getMethods()]) | set([x.getIndex() for x in clazz2.getFields()])
+                    (outDepIndicesSet, odil) = method.getOutgoingDepsIndices()
+                    accessCount = len(innerClazzEntities & outDepIndicesSet) * -1
+                    distance = self.getDistance(method, innerClazzEntities, len(innerClazzEntities))
+                    if distance >= 0 and distance < 1:
+                        candidateListForMethod.append( (method.getIndex(), clazzIdx2, accessCount, distance, method, clazz1, clazz2) )
+                        candidateListForMethod = sorted(candidateListForMethod, key=lambda cd: (cd[2], cd[3]))[:10]
+                    searchSpace = searchSpace + 1
+
+                if len(candidateListForMethod) > 0:
+                    candidateList.append(candidateListForMethod[0])
+
+        candidateList = [(mi, ci, a, d, method, clazz1, clazz2) for (mi, ci, a, d, method, clazz1, clazz2) in candidateList if clazz1 != clazz2]
+
+        candidateList = sorted(candidateList, key=lambda cd: (cd[2], cd[3]))[:50]
+
+        for (mi, ci, a, d, method, clazz1, clazz2) in candidateList:
+            clazz1.moveMethod(clazz2, method)
+            eps = self.getEntityPlacement()
+            if (eps < minEps) or (candidate == None):
+                minEps = eps
+                candidate = (mi, ci, 0)
+            clazz2.moveMethod(clazz1, method)
+            print "a:%d d:%f eps:%f clazz1:%s method:%s clazz2:%s" % (a, d, eps, clazz1.getName(), method.getName(), clazz2.getName())
         if candidate == None:
             return (None, 0)
         return ([candidate], searchSpace)
@@ -528,12 +573,15 @@ class MREngine:
     def updateMembershipMatrix(self, moveMethodSet):
         #print "Before update"
         #print self.membershipMatrix
+        print "midx: 4183 row:",
+        print self.membershipMatrix.getrow(4183).nonzero()
+
         for (m, c, d) in moveMethodSet:
             #print self.membershipMatrix.todense()
             #print self.membershipMatrix.getrow(m).todense()
             (_, oldContainingClassIdxList) = self.membershipMatrix.getrow(m).nonzero()
-            #print "oldContainingClassIdxList:",
-            #print oldContainingClassIdxList
+            print "oldContainingClassIdxList:",
+            print oldContainingClassIdxList
             flag = 0
             for cc in oldContainingClassIdxList:
                 if self.membershipMatrix[m, cc] == 1:
@@ -551,6 +599,7 @@ class MREngine:
                     toClass = self.classes[c]
                     movingMethod = self.entities[m]
                     fromClass.moveMethod(toClass, movingMethod)
+                    print "Execute Move Method: from: %s method:%s to:%s" % (fromClass.getName(), movingMethod.getName(), toClass.getName())
 
                     #(norm_coupling, raw_coupling) = self.getCoupling()
                     #print "after: coupling:%d diff:%d" % ( raw_coupling, d)
@@ -563,6 +612,8 @@ class MREngine:
                     quit()
 
             if flag == 0:
+                print self.membershipMatrix.get_row(m)
+                print "OldContainingClassIdxList is strage for Method: %s" % (self.entities[m].getName())
                 continue
         #self.membershipMatrix.eliminate_zeros()
         #self.membershipMatrix.prune()
