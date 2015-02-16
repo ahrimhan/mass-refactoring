@@ -87,9 +87,6 @@ class MREngine:
         i = 0
         for mrEntity in entities:
             mrEntity.setIndex(i)
-            if i == 4183:
-                print "-------------------- 4183 --------------------"
-                print mrEntity.getName()
             entityIdxMap[mrEntity] = i
             i = i + 1
 
@@ -103,12 +100,6 @@ class MREngine:
         for i in range(len(classes)):
             mrClass = classes[i]
             for mrMethod in mrClass.getMethods():
-                if mrMethod.getName() == "org.eclipse.jgit.treewalk.TreeWalk.reset:(Lorg.eclipse.jgit.lib.AnyObjectId;)V":
-                    print "-------------------- 4183 --------------------"
-                    print mrMethod.getName()
-                    print mrClass.getName()
-                    print "entityIdxMap:",
-                    print entityIdxMap[mrMethod]
                 membershipMatrix[entityIdxMap[mrMethod], i] = 1
             for mrField in mrClass.getFields():
                 membershipMatrix[entityIdxMap[mrField], i] = 1
